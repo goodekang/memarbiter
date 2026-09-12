@@ -1,0 +1,25 @@
+# Source-prior variants for Table 11.
+
+hand_set:
+  user: 0.9
+  document: 0.8
+  tool: 0.6
+  agent: 0.5
+  web: 0.4
+
+uniform:
+  user: 0.6
+  document: 0.6
+  tool: 0.6
+  agent: 0.6
+  web: 0.6
+
+swapped:
+  user: 0.6
+  document: 0.8
+  tool: 0.9
+  agent: 0.5
+  web: 0.4
+
+# `learned` is written by fitting τ0 on the 200-instance development split.
+learned_path: outputs/priors_learned.yaml

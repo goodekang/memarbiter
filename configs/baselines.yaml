@@ -1,0 +1,52 @@
+# Baseline families from Section 6. Each name is a key in src.baselines.registry.
+
+memory_systems:
+  - full_context
+  - bm25
+  - dense
+  - memgpt
+  - memorybank
+  - mem0
+  - amem
+  - sodamem
+
+conflict_decoding:
+  - cad
+  - adacad
+
+session_defenses:
+  - spotlighting
+  - paraphrase
+  - perplexity_filter
+  - tool_filter
+  - melon
+  - drift
+  - agentsys
+  - agentsentry
+
+repair:
+  - wipe_all
+  - recency_purge
+  - similarity_purge
+
+attribution:
+  - llm_judge
+  - attention
+  - leave_one_out
+  - lineage_ordering
+  - tasr
+
+settings:
+  dense_embedding: text-embedding-3-large
+  sodamem_context_builder: zero_llm
+  cad_on: dense
+  similarity_purge_cosine: 0.85
+  recency_purge_sessions: 3
+  leave_one_out_candidates: 12
+  attention_backbone: deepseek-v4-flash
+  llm_judge_backbone: gpt-5.6-sol
+  melon_mask_user_prompt: true
+  drift_isolate_memory_stream: true
+  agentsys_isolate_tool_workers: true
+  agentsentry_tool_boundary: true
+  perplexity_filter_model: gpt-5.6-luna

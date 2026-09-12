@@ -1,0 +1,62 @@
+# Chat models used in the paper (August 2026 snapshot).
+# `api_model` is the provider-facing name; override via environment if the
+# hosted alias differs.
+
+models:
+  gpt-5.6-sol:
+    provider: openai
+    api_model: gpt-5.6-sol
+    kind: proprietary
+    logit_access: false
+  gpt-5.6-luna:
+    provider: openai
+    api_model: gpt-5.6-luna
+    kind: proprietary
+    logit_access: false
+  gpt-5.6-terra:
+    provider: openai
+    api_model: gpt-5.6-terra
+    kind: proprietary
+    logit_access: false
+    role: judge
+  claude-opus-5:
+    provider: anthropic
+    api_model: claude-opus-5
+    kind: proprietary
+    logit_access: false
+  deepseek-v4-pro:
+    provider: deepseek
+    api_model: deepseek-v4-pro
+    kind: open_weight
+    params: 1.6T
+    activated: 49B
+    logit_access: true
+  deepseek-v4-flash:
+    provider: deepseek
+    api_model: deepseek-v4-flash
+    kind: open_weight
+    params: 284B
+    activated: 13B
+    logit_access: true
+    role: attention_attribution
+  qwen3.8-27b:
+    provider: together
+    api_model: Qwen/Qwen3.8-27B
+    kind: open_weight
+    params: 27B
+    dense: true
+    logit_access: true
+
+endpoints:
+  openai:
+    base_url_env: OPENAI_BASE_URL
+    api_key_env: OPENAI_API_KEY
+  anthropic:
+    base_url_env: ANTHROPIC_BASE_URL
+    api_key_env: ANTHROPIC_API_KEY
+  deepseek:
+    base_url_env: DEEPSEEK_BASE_URL
+    api_key_env: DEEPSEEK_API_KEY
+  together:
+    base_url_env: TOGETHER_BASE_URL
+    api_key_env: TOGETHER_API_KEY

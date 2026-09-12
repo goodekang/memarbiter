@@ -1,0 +1,28 @@
+# Fine-tune DeBERTa-v3-large from an MNLI checkpoint on 4,000 labelled pairs
+# drawn from the held-out LongMemEval distractor pool (Section 4.2).
+# Those sessions are excluded from every PERSIST evaluation history.
+
+# Paper: DeBERTa-v3-large fine-tuned from an MNLI checkpoint.
+base_model: MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli
+pairs_path: data/classifier/nli_pairs.jsonl
+n_pairs: 4000
+labels: [CONSISTENT, SUPERSEDES, CONTRADICTS, CONDITIONAL]
+max_length: 512
+output_dir: checkpoints/conflict_nli
+
+train:
+  epochs: 4
+  batch_size: 8
+  eval_batch_size: 16
+  learning_rate: 1.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  grad_clip: 1.0
+  adam_beta2: 0.98
+  seed: 17
+  val_fraction: 0.1
+  amp: true
+  eval_every_steps: 100
+  save_total: 2
+
+split_rule: exclude_from_persist_eval

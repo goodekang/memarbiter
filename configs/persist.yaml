@@ -1,0 +1,51 @@
+# PERSIST construction (main text Section 5 and Appendix A.3).
+
+seed: 42
+
+conflict:
+  seed_suite: longmemeval_s
+  n_histories: 500
+  instances_per_type: 620
+  types: [dynamic, static, conditional]
+  target_sessions: 150
+  target_tokens_k: 430
+  distractor_sessions_pool: held_out_longmemeval
+  exclude_nli_train_sessions: true
+  n_distractors: 3
+  stale_premise_fraction: 0.40
+  static_authority:
+    user: 0.70
+    tool: 0.15
+    neither: 0.15
+  conditional_query_modes: [specified, under_specified, violated]
+  slot_types: [location, preference, schedule, contact, financial_value]
+  distance_sessions: [1, 50]
+
+poison:
+  environments: [workspace, slack, travel, banking]
+  n_trajectories: 1240
+  delays: [0, 1, 2, 3, 5, 8, 10, 15, 20]
+  channels:
+    tool: 0.40
+    query_only: 0.35
+    document: 0.25
+  styles: [explicit_instruction, disguised_note, reasoning_template]
+  query_only:
+    method: minja_bridging
+    indication_sessions: 3
+  document:
+    paragraphs: 2
+  injection_sources: [agentdojo_injection_tasks, asb_attack_tools]
+  max_injection_words: 60
+
+annotation:
+  conflict_sample: 300
+  poison_sample: 100
+  reject_rate_observed: 0.074
+
+paths:
+  raw_longmemeval: data/raw/longmemeval
+  raw_agentdojo: data/raw/agentdojo
+  persist_root: data/persist
+  nli_pair_pool: data/classifier/nli_pairs.jsonl
+  instruction_pool: data/classifier/instruction_pairs.jsonl

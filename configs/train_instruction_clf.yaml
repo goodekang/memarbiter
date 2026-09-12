@@ -1,0 +1,16 @@
+# Quarantine-gate classifier (Appendix A.1): logistic regression over
+# sentence embeddings, 2,000 tool outputs + 2,000 injection strings.
+# Decision threshold is chosen for 98% recall on the injection class
+# on the development split.
+
+encoder: text-embedding-3-large
+pairs_path: data/classifier/instruction_pairs.jsonl
+n_tool: 2000
+n_injection: 2000
+injection_sources: [asb_attack_set, agentdojo_injection_tasks]
+target_recall: 0.98
+val_fraction: 0.15
+seed: 23
+output_dir: checkpoints/instruction_clf
+C: 1.0
+max_iter: 400

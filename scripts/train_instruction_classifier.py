@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""Train the quarantine-gate logistic regression (Appendix A.1)."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src.config import load_yaml
+from src.llm.client import build_client
+from src.train.build_pairs import build_instruction_pairs
+from src.train.train_instruction import train_instruction_clf
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="configs/train_instruction_clf.yaml")
+    parser.add_argument("--persist-config", default="configs/persist.yaml")
+    parser.add_argument("--backbone", default="gpt-5.6-sol")
+    parser.add_argument("--build-pairs", action="store_true")
+    args = parser.parse_args()
+
+    cfg = load_yaml(ROOT / args.config if not Path(args.config).is_absolute() else args.config)
+    pairs = Path(cfg["pairs_path"])
+    if args.build_pairs or not pairs.exists():
+        persist = load_yaml(ROOT / args.persist_config)
+        client = build_client(args.backbone)
+        n = build_instruction_pairs(
+            persist,
+            client,
+            pairs,
+            int(cfg["n_tool"]),
+            int(cfg["n_injection"]),
+            int(cfg["seed"]),
+        )
+        print(f"wrote {n} rows to {pairs}")
+    print(train_instruction_clf(cfg))
+
+
+if __name__ == "__main__":
+    main()

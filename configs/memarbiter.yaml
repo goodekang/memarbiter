@@ -1,0 +1,60 @@
+# MemArbiter hyperparameters (main text Table 7 / Appendix A.2).
+# Selected on the 200-instance development split and held fixed across
+# backbones and benchmarks.
+
+write:
+  neighbor_count: 8            # m
+  neighbor_embed_weight: 0.65  # mix of cosine and entity-overlap Jaccard
+  nli_margin: 0.15             # escalate to the backbone when top-2 gap is below this
+  corroboration_eta: 0.05      # η
+  contradiction_lambda: 0.15   # λ
+  taint_decay: 0.90            # γ
+  quarantine_prior_cutoff: 0.7 # inspect instruction-likeness iff τ0(s) < 0.7
+
+read:
+  candidates_before: 12        # K'
+  candidates_after: 5          # K
+  adopt_margin: 0.12           # δ
+  dispute_discount: 0.30       # β
+  underspecified_match: 0.5
+  violated_match: 0.0
+
+repair:
+  counterfactual_budget: 4     # B
+  block_flagged_action: false  # paper: flag starts repair; the action itself is not blocked
+
+source_priors:
+  user: 0.9
+  document: 0.8
+  tool: 0.6
+  agent: 0.5
+  web: 0.4
+
+memory_budget_tokens: 4096
+
+embeddings:
+  model: text-embedding-3-large
+  dim: 3072
+  batch_size: 64
+
+nli:
+  base_model: microsoft/deberta-v3-large
+  mnli_checkpoint: microsoft/deberta-v3-large
+  labels: [CONSISTENT, SUPERSEDES, CONTRADICTS, CONDITIONAL]
+  max_length: 512
+  checkpoint: checkpoints/conflict_nli/best
+
+instruction_classifier:
+  encoder: text-embedding-3-large
+  checkpoint: checkpoints/instruction_clf/model.joblib
+  threshold_file: checkpoints/instruction_clf/threshold.json
+  target_recall: 0.98
+
+ablation:
+  provenance_tags: true
+  write_time_adjudication: true
+  read_time_scorer: true
+  trust_update: true
+  quarantine_gate: true
+  conflict_classifier: hybrid   # hybrid | nli_only | llm_only
+  counterfactual_reexecution: true

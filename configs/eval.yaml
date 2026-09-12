@@ -1,0 +1,40 @@
+# Evaluation protocol (main text Section 6).
+
+seeds: [13, 31, 47, 67, 89]
+n_bootstrap: 10000
+holm_family_by: table
+memory_budget_tokens: 4096
+planning:
+  decoding: deterministic
+  reasoning_effort: lowest
+judge:
+  model: gpt-5.6-terra
+  human_agreement: 0.947
+  n_human_labels: 300
+confidence_elicitation: true
+dev_split:
+  n_instances: 200
+  source: held_out_distractor_sessions
+
+suites:
+  conflict:
+    split: data/persist/conflict/test.jsonl
+    metrics: [dynamic_acc, static_acc, conditional_acc, cr_f1, spr, hit_at_5, abstain_precision]
+  poison:
+    split: data/persist/poison/test.jsonl
+    metrics: [mpsr, e2e_asr, srsr, brr, fel_at_1, fel_at_3, clean_utility]
+    reissue_trigger_after_repair: true
+  public:
+    split: data/public/longmemeval_s.jsonl
+    agentdojo_split: data/public/agentdojo.jsonl
+    longmemeval_s: {ku: 78, abstention: 30, all: 500}
+    locomo: {adversarial: 446, all: 1986}
+    memoryagentbench_fc: 1800
+    agentdojo: {tasks: 97, cases: 629, suite_cases: [240, 105, 140, 144]}
+    asb: {memory_poisoning: 400, mixed: 400}
+    agentpoison: 300
+    minja: {ehragent: 200, rap: 200}
+
+default_backbone: gpt-5.6-sol
+default_system: memarbiter
+output_dir: outputs

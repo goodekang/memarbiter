@@ -1,0 +1,27 @@
+# Ablation switches for Table 10. Each variant is merged over memarbiter.yaml.
+
+variants:
+  full:
+    provenance_tags: true
+    write_time_adjudication: true
+    read_time_scorer: true
+    trust_update: true
+    quarantine_gate: true
+    conflict_classifier: hybrid
+    counterfactual_reexecution: true
+  no_provenance:
+    provenance_tags: false
+  no_adjudication:
+    write_time_adjudication: false
+  no_scorer:
+    read_time_scorer: false
+  no_trust_update:
+    trust_update: false
+  no_quarantine:
+    quarantine_gate: false
+  nli_only:
+    conflict_classifier: nli_only
+  llm_only:
+    conflict_classifier: llm_only
+  no_counterfactual:
+    counterfactual_reexecution: false
