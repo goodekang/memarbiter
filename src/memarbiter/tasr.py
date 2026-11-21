@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 from src.memarbiter.record import MemoryRecord, SourceKind
@@ -23,6 +23,9 @@ class AttributionResult:
     n_reexec: int
     quarantined: list[str]
     escalated_to_human: bool
+    # Ranked candidate list: the verified responsible record (if any) first,
+    # then the remaining candidates of C in lineage order (taint desc, recency).
+    ranked: list[str] = field(default_factory=list)
 
 
 Verifier = Callable[[dict], str]
@@ -61,7 +64,7 @@ class TASR:
         if not self.use_counterfactual:
             responsible = candidates[0] if candidates else None
             quarantined = self._commit(responsible) if responsible else []
-            return AttributionResult(responsible, examined, 0, quarantined, responsible is None)
+            return AttributionResult(responsible, examined, 0, quarantined, responsible is None, list(examined))
         ordered = candidates[: self.budget]
 
         n_reexec = 0
@@ -76,14 +79,20 @@ class TASR:
             n_reexec += 1
             if verifier(action) == "ok":
                 quarantined = self._commit(record)
-                return AttributionResult(record, examined, n_reexec, quarantined, False)
-        return AttributionResult(None, examined, n_reexec, [], True)
+                ranked = [record.record_id] + [rid for rid in examined if rid != record.record_id]
+                return AttributionResult(record, examined, n_reexec, quarantined, False, ranked)
+        return AttributionResult(None, examined, n_reexec, [], True, list(examined))
 
     def _commit(self, record: MemoryRecord) -> list[str]:
+        # Desc(r) follows derivation edges only (typed lineage); a record that
+        # superseded r is not a descendant and is retained with its own trust
+        # and taint. With the untyped store it is quarantined as well.
         doomed = self.store.descendants(record.record_id)
         self.store.quarantine(doomed)
         kind = record.source_kind.value
         if kind in self.priors:
             self.priors[kind] = max(0.0, self.priors[kind] - self.lamb)
         self.store.reopen_intervals_closed_by(record.record_id)
+        if self.store.typed_lineage:
+            self.store.drop_supersession_edges_to(record.record_id)
         return sorted(doomed)

@@ -9,6 +9,16 @@ variants:
     quarantine_gate: true
     conflict_classifier: hybrid
     counterfactual_reexecution: true
+    corroboration: restricted
+    lineage: typed
+  # Original update rules used for the main tables (full-suite comparison in Section 7.12).
+  original_rules:
+    corroboration: unrestricted
+    lineage: untyped
+  unrestricted_corroboration:
+    corroboration: unrestricted
+  untyped_lineage:
+    lineage: untyped
   no_provenance:
     provenance_tags: false
   no_adjudication:

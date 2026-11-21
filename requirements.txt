@@ -17,6 +17,6 @@ safetensors>=0.4.0
 sentencepiece>=0.2.0
 protobuf>=4.25.0
 
-# Optional: public seed suites used by scripts/build_persist.py
+# Optional: public seed suites used by scripts/build_persist.py and the gate-data builder
 # datasets>=2.20.0          # LongMemEval_S via Hugging Face
-# agentdojo>=0.1.0          # workspace / Slack / travel / banking tools
+# agentdojo>=0.1.35         # workspace / Slack / travel / banking tools, user tasks, seed data

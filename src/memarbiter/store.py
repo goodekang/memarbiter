@@ -13,9 +13,15 @@ from src.memarbiter.record import MemoryRecord, Partition
 class ProvenanceStore:
     """Content-agnostic store: write / retrieve / update / delete plus quarantine."""
 
-    def __init__(self, embed_weight: float = 0.65) -> None:
+    def __init__(self, embed_weight: float = 0.65, *, typed_lineage: bool = True) -> None:
         self.embed_weight = embed_weight
+        # typed_lineage=False reproduces the original single edge set, in which
+        # supersession links are followed like derivation links.
+        self.typed_lineage = typed_lineage
         self._records: dict[str, MemoryRecord] = {}
+
+    def parents(self, record: MemoryRecord) -> list[str]:
+        return record.parents(typed=self.typed_lineage)
 
     def __len__(self) -> int:
         return len(self._records)
@@ -38,7 +44,7 @@ class ProvenanceStore:
         return record
 
     def inherit_taint(self, record: MemoryRecord) -> MemoryRecord:
-        inherited = [self._records[pid].taint for pid in record.lineage if pid in self._records]
+        inherited = [self._records[pid].taint for pid in self.parents(record) if pid in self._records]
         if inherited:
             record.taint = max(record.taint, max(inherited))
         return record
@@ -76,7 +82,7 @@ class ProvenanceStore:
             for record in self._records.values():
                 if record.record_id in found:
                     continue
-                if any(parent in found for parent in record.lineage):
+                if any(parent in found for parent in self.parents(record)):
                     found.add(record.record_id)
                     changed = True
         return found
@@ -92,8 +98,35 @@ class ProvenanceStore:
             record = self._records.get(current)
             if record is None:
                 continue
-            stack.extend(record.lineage)
+            stack.extend(self.parents(record))
         return seen
+
+    def derivation_ancestors(self, record: MemoryRecord) -> set[str]:
+        """Ancestors via derivation edges only, plus the source observation."""
+        seen: set[str] = set()
+        stack = list(record.derived_from)
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            parent = self._records.get(current)
+            if parent is not None:
+                stack.extend(parent.derived_from)
+                if parent.observation_id:
+                    seen.add(f"obs:{parent.observation_id}")
+        if record.observation_id:
+            seen.add(f"obs:{record.observation_id}")
+        return seen
+
+    def drop_supersession_edges_to(self, record_id: str) -> list[str]:
+        """Remove ``record_id`` from the supersession edges of the records that superseded it."""
+        touched = []
+        for record in self._records.values():
+            if record_id in record.supersedes:
+                record.supersedes = [rid for rid in record.supersedes if rid != record_id]
+                touched.append(record.record_id)
+        return touched
 
     def retrieve_neighbors(
         self,

@@ -140,6 +140,7 @@ class ReActAgent:
             repair_info = {
                 "responsible": None if result.responsible is None else result.responsible.record_id,
                 "examined": result.examined,
+                "ranked": result.ranked,
                 "n_reexec": result.n_reexec,
                 "quarantined": result.quarantined,
                 "human": result.escalated_to_human,

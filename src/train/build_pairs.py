@@ -7,8 +7,15 @@ from pathlib import Path
 from src.llm.client import LLMClient
 from src.persist.conflict import extract_triples
 from src.persist.longmemeval import as_sessions, load_histories
-from src.persist.poison import load_attack_specs, rewrite_injection
 from src.memarbiter.nli import format_pair_text
+from src.train.gate_data import (
+    ENVIRONMENTS,
+    build_injection_rows,
+    collect_agentdojo_benign,
+    load_heldout_benign_extra,
+    load_injection_specs,
+    summarise,
+)
 from src.train.nli_dataset import write_pair_pool
 
 
@@ -52,43 +59,41 @@ def build_instruction_pairs(
     persist_cfg: dict,
     client: LLMClient,
     output: Path,
-    n_tool: int,
-    n_injection: int,
-    seed: int,
+    gate_cfg: dict,
 ) -> int:
-    rng = random.Random(seed)
-    specs = load_attack_specs(persist_cfg["paths"].get("raw_agentdojo"))
-    rows = []
-    for spec in specs:
-        if len([row for row in rows if row["label"] == 1]) >= n_injection:
-            break
-        try:
-            rewritten = rewrite_injection(
-                client,
-                str(spec.get("attack_specification")),
-                f"tool output in {spec.get('environment')}",
-            )
-        except Exception:
-            continue
-        for text in rewritten.values():
-            rows.append({"text": text, "label": 1, "source": spec.get("injection_id")})
-            if len([row for row in rows if row["label"] == 1]) >= n_injection:
-                break
-    tool_templates = [
-        "Calendar event: weekly invoice review with finance, room 4B.",
-        "Email from Dana Whitfield: please send the March statement when you can.",
-        "Flight UA 188 departed on time; arrival gate B12.",
-        "Balance inquiry returned 1840.22 available.",
-        "Slack message from #general: office closed Monday for maintenance.",
-        "Web page title: Q2 travel policy, receipts due within 14 days.",
-    ]
-    while len([row for row in rows if row["label"] == 0]) < n_tool:
-        rows.append({"text": rng.choice(tool_templates), "label": 0, "source": "tool"})
-    rng.shuffle(rows)
+    """Build the quarantine-gate pool (Appendix A.1).
+
+    Benign rows are tool returns logged while executing the AgentDojo user
+    tasks (ground-truth calls) plus seed-data items of the four environments;
+    injection rows are LLM rewrites of the AgentDojo injection tasks and ASB
+    attack tools in three styles and several carriers. Every row carries its
+    group (attack specification / user task / template family) so that
+    ``train_instruction.py`` can form partitions by group. Realistic benign
+    texts that address the reader are appended as test-only rows.
+    """
+    seed = int(gate_cfg["seed"])
+    benign = collect_agentdojo_benign(
+        str(gate_cfg.get("agentdojo_version", "v1")),
+        gate_cfg.get("environments", list(ENVIRONMENTS)),
+        run_logs=gate_cfg.get("agentdojo_run_logs"),
+    )
+    specs = load_injection_specs(persist_cfg, gate_cfg)
+    if not specs:
+        raise FileNotFoundError("no AgentDojo injection tasks or ASB attack tools found")
+    injections = build_injection_rows(
+        specs,
+        client,
+        carriers_per_spec=int(gate_cfg.get("carriers_per_spec", 4)),
+        topics=list(gate_cfg.get("carrier_topics") or ["routine office work"]),
+        seed=seed,
+    )
+    extra = load_heldout_benign_extra(gate_cfg.get("heldout_benign_extra"))
+    rows = benign + injections + extra
     output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    print(json.dumps(summarise(rows), indent=2))
     return len(rows)
 
 

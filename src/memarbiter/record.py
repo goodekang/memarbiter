@@ -54,7 +54,11 @@ class MemoryRecord:
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     scope: dict[str, str] = field(default_factory=dict)
-    lineage: list[str] = field(default_factory=list)
+    # Typed lineage (main text, provenance-tagged store): derivation edges point to the records whose
+    # content was used to produce this record; supersession edges point to the
+    # records whose validity interval this record closed and carry no content.
+    derived_from: list[str] = field(default_factory=list)
+    supersedes: list[str] = field(default_factory=list)
     disputed: bool = False
     disputed_with: list[str] = field(default_factory=list)
     partition: Partition = Partition.ACTIVE
@@ -63,6 +67,9 @@ class MemoryRecord:
     observation_id: str | None = None
     context_sentences: str = ""
     closed_by: str | None = None
+    # Sources that have already corroborated this record; a source contributes
+    # at most one corroboration per attribute.
+    corroborating_sources: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         if self.valid_from is None:
@@ -84,8 +91,21 @@ class MemoryRecord:
             return False
         return self.valid_until is None or when < self.valid_until
 
-    def ancestors(self) -> list[str]:
-        return list(self.lineage)
+    def parents(self, *, typed: bool = True) -> list[str]:
+        """Parents followed by taint, attribution and quarantine.
+
+        With typed lineage only derivation edges are followed. ``typed=False``
+        reproduces the original single edge set, in which a superseded record
+        is also treated as a parent of the record that superseded it.
+        """
+        if typed:
+            return list(self.derived_from)
+        return list(dict.fromkeys([*self.derived_from, *self.supersedes]))
+
+    @property
+    def lineage(self) -> list[str]:
+        """Untyped view of both edge sets (kept for logging and baselines)."""
+        return self.parents(typed=False)
 
     def to_prompt_tag(self) -> str:
         date = self.write_time.date().isoformat()
@@ -105,7 +125,8 @@ class MemoryRecord:
             "scope": dict(self.scope),
             "trust": self.trust,
             "taint": self.taint,
-            "lineage": list(self.lineage),
+            "derived_from": list(self.derived_from),
+            "supersedes": list(self.supersedes),
             "disputed": self.disputed,
             "partition": self.partition.value,
             "attribute": self.attribute,

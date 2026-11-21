@@ -1,16 +1,60 @@
-# Quarantine-gate classifier (Appendix A.1): logistic regression over
-# sentence embeddings, 2,000 tool outputs + 2,000 injection strings.
-# Decision threshold is chosen for 98% recall on the injection class
-# on the development split.
+# Quarantine-gate classifier (Appendix A.1, Table A.1): logistic regression over
+# sentence embeddings. Training/dev pool: up to 2,000 benign tool outputs and
+# 2,000 injection strings. The decision threshold is chosen for 98% recall on
+# the injection class on the dev partition.
 
 encoder: text-embedding-3-large
 pairs_path: data/classifier/instruction_pairs.jsonl
+split_path: data/classifier/instruction_split.jsonl
 n_tool: 2000
 n_injection: 2000
-injection_sources: [asb_attack_set, agentdojo_injection_tasks]
 target_recall: 0.98
-val_fraction: 0.15
 seed: 23
-output_dir: checkpoints/instruction_clf
 C: 1.0
 max_iter: 400
+
+# grouped: partitions by attack specification / user task / template family
+#          (revised protocol, Table A.1)
+# row:     random row-level split (original protocol; the gate used for the
+#          main-table results was trained this way)
+split: grouped
+output_dir: checkpoints/instruction_clf
+row_output_dir: checkpoints/instruction_clf_rowsplit
+val_fraction: 0.15          # row split only
+compare_row_split: true     # grouped: also report a row-level split of the same rows
+
+# --- data sources -----------------------------------------------------------
+# Benign: tool returns logged while executing the AgentDojo user tasks of the
+# four environments -- trace logs of benign runs (AgentDojo `--logdir`, runs
+# without an injection task) and ground-truth executions of every user task --
+# plus the seed data of these environments (requires `pip install agentdojo`).
+agentdojo_version: v1          # 27 injection tasks, 97 user tasks (as in configs/eval.yaml)
+agentdojo_run_logs: data/raw/agentdojo_runs
+environments: [workspace, slack, travel, banking]
+# Injections: AgentDojo injection tasks (configs/persist.yaml paths.raw_agentdojo
+# or the installed package) + ASB attack tools (local copy of ASB's attack-tool JSONL).
+asb_attack_tools: data/raw/asb/all_attack_tools.jsonl
+carriers_per_spec: 4        # carriers = channel (tool / document / query-only) x topic
+carrier_topics:
+  - routine office work
+  - travel planning
+  - billing and payments
+  - team coordination
+# Realistic benign texts with imperatives addressed to the reader (emails and
+# messages asking the user to act, web pages with instructions, documentation).
+# JSONL with fields text, category in {email_message, web_page, documentation}.
+# Used only in the test partition.
+heldout_benign_extra: data/raw/gate_benign_imperative.jsonl
+
+grouped_split:
+  test_agentdojo_specs: 6           # held-out AgentDojo injection tasks
+  test_asb_tools: 30                # held-out ASB attack tools
+  test_benign_group_fraction: 0.2   # held-out user tasks / template families
+  dev_group_fraction: 0.15
+  dedup_cosine: 0.95                # drop texts this similar to an earlier partition
+  test_injections: 600              # balanced over the three styles
+  test_benign_quota:
+    structured_tool_return: 500
+    email_message: 300
+    web_page: 250
+    documentation: 150

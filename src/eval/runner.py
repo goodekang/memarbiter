@@ -57,6 +57,7 @@ def run_suite(
     sensitivity_axis: str | None = None,
     attribution_mode: str = "tasr",
     repair_mode: str | None = None,
+    query_context: str = "annotated",
 ) -> dict[str, Any]:
     from src.paths import resolve_path
 
@@ -87,7 +88,13 @@ def run_suite(
     )
     if suite == "conflict":
         instances = load_conflicts(resolve_path(eval_cfg["suites"]["conflict"]["split"]))
-        result = evaluate_conflict(agent, judge, instances, elicit=bool(eval_cfg.get("confidence_elicitation")))
+        result = evaluate_conflict(
+            agent,
+            judge,
+            instances,
+            elicit=bool(eval_cfg.get("confidence_elicitation")),
+            context_mode=query_context,
+        )
     elif suite == "poison":
         trajectories = load_poisons(resolve_path(eval_cfg["suites"]["poison"]["split"]))
         mode = repair_mode or ("tasr" if use_repair else "none")
@@ -128,6 +135,7 @@ def run_suite(
         "suite": suite,
         "system": system,
         "backbone": backbone,
+        "query_context": query_context,
         "defense": defense,
         "seed": seed,
         "ablation": ablation,

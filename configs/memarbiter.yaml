@@ -1,4 +1,4 @@
-# MemArbiter hyperparameters (main text Table 7 / Appendix A.2).
+# MemArbiter hyperparameters (Appendix Table A.3).
 # Selected on the 200-instance development split and held fixed across
 # backbones and benchmarks.
 
@@ -18,6 +18,10 @@ read:
   dispute_discount: 0.30       # β
   underspecified_match: 0.5
   violated_match: 0.0
+  # Optional JSON {stored value: [extra surface forms]} for the lexical
+  # query-context extractor (--query-context extracted). Without it, synonyms
+  # are collected from the stored scope predicates only.
+  context_synonyms: null
 
 repair:
   counterfactual_budget: 4     # B
@@ -58,3 +62,14 @@ ablation:
   quarantine_gate: true
   conflict_classifier: hybrid   # hybrid | nli_only | llm_only
   counterfactual_reexecution: true
+  # Revised update rules (Sections 4.1, 4.2, 4.4; checked in Table A.2):
+  #   corroboration: restricted   -> same attribute + independent provenance,
+  #                                  one corroboration per source and attribute
+  #                  unrestricted -> every CONSISTENT neighbour corroborates (original rule)
+  #   lineage: typed   -> derivation / supersession edges; taint and quarantine
+  #                       follow derivation edges only
+  #            untyped -> single edge set (original rule)
+  # The main-table numbers were produced with the original rules; use
+  # `--ablation original_rules` to reproduce them.
+  corroboration: restricted
+  lineage: typed

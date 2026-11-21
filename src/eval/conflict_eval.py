@@ -24,7 +24,17 @@ def evaluate_conflict(
     instances: list[ConflictInstance],
     *,
     elicit: bool = False,
+    context_mode: str = "annotated",
 ) -> dict[str, Any]:
+    """Run PERSIST-Conflict.
+
+    ``context_mode="annotated"`` supplies the scope annotation of each query as
+    psi (main tables). ``context_mode="extracted"`` derives psi from the query
+    and the preceding turns of the session by lexical matching against the
+    stored condition keys (reported separately, Table 14).
+    """
+    if context_mode not in {"annotated", "extracted"}:
+        raise ValueError(f"unknown context mode {context_mode!r}")
     rows = []
     for instance in instances:
         replay_history(agent, instance.sessions)
@@ -33,7 +43,7 @@ def evaluate_conflict(
             if instance.sessions:
                 when = _parse(instance.sessions[min(offset, len(instance.sessions) - 1)].date)
             agent.memory.write(text, "user", when, context=text)
-        ctx = _query_context(instance)
+        ctx = _query_context(instance) if context_mode == "annotated" else _extracted_context(agent, instance)
         trace = agent.run_turn(instance.query, query_context=ctx, query_time=_query_time(instance))
         judged = judge_response(judge, instance, trace.action.content)
         should_abstain = (
@@ -53,6 +63,8 @@ def evaluate_conflict(
             "should_abstain": should_abstain,
             "did_abstain": "Governance note (abstain)" in trace.memory_block or "Governance note (clarify)" in trace.memory_block,
             "gold_conflict": not instance.is_control,
+            "query_scope_mode": instance.query_scope_mode,
+            "query_context": ctx,
         }
         if elicit:
             conf = elicit_confidence(
@@ -83,6 +95,7 @@ def evaluate_conflict(
 
 
 def _query_context(instance: ConflictInstance) -> dict[str, str]:
+    """Annotated psi: read from the instance's scope annotation (main tables)."""
     if not instance.condition_key:
         return {}
     if instance.query_scope_mode == "specified" and instance.scope_value:
@@ -90,6 +103,14 @@ def _query_context(instance: ConflictInstance) -> dict[str, str]:
     if instance.query_scope_mode == "violated" and (instance.scope_alt or instance.scope_value):
         return {instance.condition_key: instance.scope_alt or instance.scope_value}
     return {}
+
+
+def _extracted_context(agent: ReActAgent, instance: ConflictInstance) -> dict[str, str]:
+    """Extracted psi: query + preceding turns of the query's session, matched lexically."""
+    if not hasattr(agent.memory, "layer"):
+        return {}
+    preceding = [turn.text for turn in instance.sessions[-1].turns] if instance.sessions else []
+    return agent.memory.layer.extract_context(instance.query, preceding)
 
 
 def _query_time(instance: ConflictInstance) -> datetime:

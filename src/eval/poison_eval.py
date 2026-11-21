@@ -153,7 +153,7 @@ def _attribution(agent, traj, trigger, mode: str, judge_client) -> tuple[bool | 
     ranked: list[str] = []
     if mode == "tasr" and trigger.repair:
         responsible = trigger.repair.get("responsible")
-        ranked = list(trigger.repair.get("examined") or [])
+        ranked = list(trigger.repair.get("ranked") or trigger.repair.get("examined") or [])
     elif mode == "lineage_ordering" and hasattr(agent.memory, "layer"):
         result = lineage_ordering(_flagged(agent, trigger))
         responsible = None if result.responsible is None else result.responsible.record_id

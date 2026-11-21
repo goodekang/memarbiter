@@ -22,6 +22,7 @@ class PairDecision:
     margin: float
     escalated: bool
     attribute: str | None = None
+    same_attribute: bool | None = None
     same_time: bool | None = None
     justification: str = ""
 
@@ -113,7 +114,7 @@ class ConflictNLI:
                 "older_context": older.context_sentences,
                 "newer_context": newer.context_sentences,
             },
-            required=("relation", "attribute", "same_time", "justification"),
+            required=("relation", "attribute", "same_attribute", "same_time", "justification"),
             allowed={"relation": LABELS},
         )
         return PairDecision(
@@ -122,6 +123,7 @@ class ConflictNLI:
             margin=1.0,
             escalated=True,
             attribute=parsed.get("attribute"),
+            same_attribute=_as_bool(parsed.get("same_attribute")),
             same_time=bool(parsed.get("same_time")),
             justification=str(parsed.get("justification") or ""),
         )
@@ -131,6 +133,14 @@ class ConflictNLI:
         self.model = AutoModelForSequenceClassification.from_pretrained(path)
         self.model.to(self.device)
         self.model.eval()
+
+
+def _as_bool(value) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "yes", "1"}
 
 
 def load_mnli_backbone(name: str, num_labels: int = 4) -> tuple[nn.Module, object]:

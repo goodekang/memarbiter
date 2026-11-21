@@ -19,7 +19,7 @@ the date on which it was written, and the sentences that surrounded it in the se
 in which it was written. The older record was written first. Your goal is to decide \
 how the newer record relates to the older one. Exactly one of the following relations applies:
 
-- CONSISTENT: the two records agree, or they describe different attributes that cannot conflict.
+- CONSISTENT: the two records agree, or they describe different attributes that cannot conflict. Report in same_attribute which of the two cases applies.
 - SUPERSEDES: both describe the same attribute and the newer record reflects a state that \
 has changed since the older one was written (e.g., a move, a new employer, a changed preference). \
 The older value was true and is no longer.
@@ -36,6 +36,7 @@ You will output a JSON object containing the following fields:
 {
   "relation": string, // one of CONSISTENT, SUPERSEDES, CONTRADICTS, CONDITIONAL.
   "attribute": string, // the entity and attribute both records describe (e.g., user.home_city).
+  "same_attribute": boolean, // whether both records describe this same entity and attribute.
   "same_time": boolean, // whether the two records refer to the same period of time.
   "justification": string // one sentence quoting the words in the records or their context that determine the relation.
 }

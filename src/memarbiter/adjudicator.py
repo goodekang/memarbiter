@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.llm.json_call import structured_call
-from src.memarbiter.entity import extract_entities
+from src.memarbiter.entity import SLOT_HINTS, extract_entities
 from src.memarbiter.nli import ConflictNLI, PairDecision
 from src.memarbiter.record import MemoryRecord, Relation, SourceKind
 from src.memarbiter.store import ProvenanceStore
@@ -35,7 +35,10 @@ class WriteAdjudicator:
         trust_update: bool = True,
         adjudicate: bool = True,
         classifier_mode: str = "hybrid",
+        corroboration: str = "restricted",
     ) -> None:
+        if corroboration not in {"restricted", "unrestricted"}:
+            raise ValueError(f"unknown corroboration rule {corroboration!r}")
         self.store = store
         self.nli = nli
         self.llm = llm
@@ -47,6 +50,10 @@ class WriteAdjudicator:
         self.trust_update = trust_update
         self.adjudicate = adjudicate
         self.classifier_mode = classifier_mode
+        # "restricted": same attribute and independent provenance are required
+        # (revised rule). "unrestricted": every CONSISTENT neighbour counts as
+        # corroboration (original rule; used for the main-table configuration).
+        self.corroboration = corroboration
         self._known_keys: set[str] = set()
 
     def apply(self, incoming: MemoryRecord) -> WriteOutcome:
@@ -73,7 +80,8 @@ class WriteAdjudicator:
                 self.llm,
                 classifier=self.classifier_mode,
             )
-            if decision.attribute:
+            shares_attribute = decision.relation is not Relation.CONSISTENT or decision.same_attribute is not False
+            if decision.attribute and shares_attribute:
                 incoming.attribute = incoming.attribute or decision.attribute
                 older.attribute = older.attribute or decision.attribute
             self._apply_relation(older, incoming, decision)
@@ -87,8 +95,10 @@ class WriteAdjudicator:
             older, newer = (other, incoming) if other.write_time <= incoming.write_time else (incoming, other)
             older.valid_until = newer.write_time
             older.closed_by = newer.record_id
-            if older.record_id not in newer.lineage:
-                newer.lineage.append(older.record_id)
+            # Supersession edge: records that the newer value replaced; carries
+            # no content, so it propagates neither taint nor quarantine.
+            if older.record_id not in newer.supersedes:
+                newer.supersedes.append(older.record_id)
             return
         if decision.relation is Relation.CONTRADICTS:
             other.disputed = True
@@ -106,11 +116,54 @@ class WriteAdjudicator:
             self._known_keys.update(other.scope)
             self._known_keys.update(incoming.scope)
             return
-        if self.trust_update:
-            other.trust = other.trust + self.eta * (1.0 - other.trust)
-            incoming.trust = incoming.trust + self.eta * (1.0 - incoming.trust)
-            other.taint = self.gamma * other.taint
-            incoming.taint = self.gamma * incoming.taint
+        if not self.trust_update:
+            return
+        if self.corroboration == "unrestricted":
+            self._corroborate(other)
+            self._corroborate(incoming)
+            return
+        if not self._same_attribute(other, incoming, decision):
+            return
+        if not self._independent(other, incoming):
+            return
+        attribute = decision.attribute or other.attribute or incoming.attribute or ""
+        if _corroboration_key(incoming, attribute) not in other.corroborating_sources:
+            other.corroborating_sources.add(_corroboration_key(incoming, attribute))
+            self._corroborate(other)
+        if _corroboration_key(other, attribute) not in incoming.corroborating_sources:
+            incoming.corroborating_sources.add(_corroboration_key(other, attribute))
+            self._corroborate(incoming)
+
+    def _corroborate(self, record: MemoryRecord) -> None:
+        record.trust = record.trust + self.eta * (1.0 - record.trust)
+        record.taint = self.gamma * record.taint
+
+    @staticmethod
+    def _same_attribute(left: MemoryRecord, right: MemoryRecord, decision: PairDecision) -> bool:
+        """Escalated pairs use the backbone's same_attribute field; NLI pairs use the entity--slot tags."""
+        if decision.escalated and decision.same_attribute is not None:
+            return bool(decision.same_attribute)
+        if left.attribute and right.attribute:
+            return left.attribute == right.attribute
+        left_slots = left.entities & SLOT_HINTS
+        right_slots = right.entities & SLOT_HINTS
+        if not left_slots or not right_slots or not (left_slots & right_slots):
+            return False
+        left_entities = left.entities - SLOT_HINTS
+        right_entities = right.entities - SLOT_HINTS
+        if left_entities and right_entities:
+            return bool(left_entities & right_entities)
+        return True
+
+    def _independent(self, left: MemoryRecord, right: MemoryRecord) -> bool:
+        """Different sources, and no derivation path or common derivation ancestor between the two."""
+        if left.source == right.source:
+            return False
+        left_anc = self.store.derivation_ancestors(left)
+        right_anc = self.store.derivation_ancestors(right)
+        if left.record_id in right_anc or right.record_id in left_anc:
+            return False
+        return not (left_anc & right_anc)
 
     def _penalise(self, left: MemoryRecord, right: MemoryRecord) -> None:
         tau_left, tau_right = left.trust, right.trust
@@ -135,6 +188,10 @@ class WriteAdjudicator:
         if not isinstance(conditions, dict):
             return {}
         return {str(key): str(value) for key, value in conditions.items()}
+
+
+def _corroboration_key(source_record: MemoryRecord, attribute: str) -> str:
+    return f"{source_record.source}|{attribute}"
 
 
 def prior_for(kind: SourceKind, priors: dict[str, float]) -> float:

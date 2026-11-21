@@ -202,7 +202,7 @@ class SodaMemMemory(MemoryBackend):
             trust=1.0,
             taint=0.0,
             embedding=self.encoder.encode_one(content),
-            lineage=list(derived_from or []),
+            derived_from=list(derived_from or []),
             entities=extract_entities(content),
         )
         neighbours = self.store.retrieve_neighbors(record.embedding, record.entities, 4)
@@ -212,7 +212,7 @@ class SodaMemMemory(MemoryBackend):
             if record.write_time > other.write_time and other.entities & record.entities:
                 other.valid_until = record.write_time
                 other.closed_by = record.record_id
-                record.lineage.append(other.record_id)
+                record.supersedes.append(other.record_id)
                 self.edges.append((record.record_id, other.record_id, "supersedes"))
             elif other.entities & record.entities:
                 self.edges.append((record.record_id, other.record_id, "contradicts"))

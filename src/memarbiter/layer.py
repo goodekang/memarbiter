@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Mapping
 
 from src.memarbiter.adjudicator import WriteAdjudicator, WriteOutcome, prior_for
+from src.memarbiter.context import extract_query_context
 from src.memarbiter.embeddings import EmbeddingClient
 from src.paths import resolve_path
 from src.memarbiter.entity import extract_entities
@@ -61,6 +62,7 @@ class MemArbiter:
             trust_update=bool(ablation.get("trust_update", True)),
             adjudicate=bool(ablation.get("write_time_adjudication", True)),
             classifier_mode=str(ablation.get("conflict_classifier", "hybrid")),
+            corroboration=str(ablation.get("corroboration", "restricted")),
         )
         self.scorer = FitnessScorer(
             k_before=int(read_cfg.get("candidates_before", 12)),
@@ -77,6 +79,7 @@ class MemArbiter:
             use_counterfactual=bool(ablation.get("counterfactual_reexecution", True)),
         )
         self.block_flagged = bool(repair_cfg.get("block_flagged_action", False))
+        self.context_synonyms = _load_synonyms(read_cfg.get("context_synonyms"))
 
     def write(self, request: WriteRequest) -> WriteOutcome:
         kind, tool_name = _maybe_web(*parse_source(request.source))
@@ -89,7 +92,7 @@ class MemArbiter:
             trust=tau0 if self.use_provenance else 1.0,
             taint=(1.0 - tau0) if self.use_provenance else 0.0,
             embedding=self.embeddings.encode_one(request.content),
-            lineage=list(request.derived_from or []),
+            derived_from=list(request.derived_from or []),
             observation_id=request.observation_id,
             context_sentences=request.context_sentences,
             entities=extract_entities(request.content),
@@ -121,6 +124,15 @@ class MemArbiter:
             query_context or {},
         )
 
+    def extract_context(self, query: str, preceding_turns: list[str] | None = None) -> dict[str, str]:
+        """Query context psi from the query and preceding session turns (no LLM call)."""
+        return extract_query_context(
+            query,
+            preceding_turns or [],
+            self.store.all_records(),
+            extra_synonyms=self.context_synonyms,
+        )
+
     def repair(self, step: FlaggedStep, reexecute, verifier) -> AttributionResult:
         return self.tasr.run(step, reexecute, verifier)
 
@@ -144,8 +156,24 @@ def build_memarbiter(cfg: dict, llm, embeddings: EmbeddingClient | None = None) 
         threshold_file=resolve_path(gate_cfg.get("threshold_file", "checkpoints/instruction_clf/threshold.json")),
         encoder=embeddings,
     )
-    store = ProvenanceStore(embed_weight=float(cfg.get("write", {}).get("neighbor_embed_weight", 0.65)))
+    store = ProvenanceStore(
+        embed_weight=float(cfg.get("write", {}).get("neighbor_embed_weight", 0.65)),
+        typed_lineage=str(cfg.get("ablation", {}).get("lineage", "typed")) == "typed",
+    )
     return MemArbiter(store, embeddings, nli, gate, llm, cfg)
+
+
+def _load_synonyms(path: str | None) -> dict[str, list[str]]:
+    """Optional extra surface forms per stored value (JSON object: value -> [forms])."""
+    if not path:
+        return {}
+    import json
+
+    resolved = resolve_path(path)
+    if not resolved.exists():
+        return {}
+    data = json.loads(resolved.read_text(encoding="utf-8"))
+    return {str(key): [str(v) for v in vals] for key, vals in data.items()}
 
 
 _WEB_TOOLS = {"web", "browse", "browser", "search_web", "visit_webpage", "open_page"}

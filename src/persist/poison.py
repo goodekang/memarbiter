@@ -31,7 +31,7 @@ def rewrite_injection(client: LLMClient, attack_spec: str, carrier: str) -> dict
     return {key: str(parsed[key]) for key in STYLE_KEYS}
 
 
-def load_attack_specs(agentdojo_root: str | None = None) -> list[dict[str, Any]]:
+def load_attack_specs(agentdojo_root: str | None = None, benchmark_version: str = "v1") -> list[dict[str, Any]]:
     """Pull injection tasks from an installed AgentDojo / local dump."""
     specs = _from_local(agentdojo_root)
     if specs:
@@ -40,8 +40,12 @@ def load_attack_specs(agentdojo_root: str | None = None) -> list[dict[str, Any]]
         from agentdojo.task_suite.load_suites import get_suites
     except ImportError:
         return []
+    try:
+        suites = get_suites()
+    except TypeError:  # newer AgentDojo releases require the benchmark version
+        suites = get_suites(benchmark_version)
     rows = []
-    for suite_name, suite in get_suites().items():
+    for suite_name, suite in suites.items():
         if suite_name not in {"workspace", "slack", "travel", "banking"}:
             continue
         injections = getattr(suite, "injection_tasks", {}) or {}
