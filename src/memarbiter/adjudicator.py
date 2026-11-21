@@ -51,8 +51,8 @@ class WriteAdjudicator:
         self.adjudicate = adjudicate
         self.classifier_mode = classifier_mode
         # "restricted": same attribute and independent provenance are required
-        # (revised rule). "unrestricted": every CONSISTENT neighbour counts as
-        # corroboration (original rule; used for the main-table configuration).
+        # (rule of the method). "unrestricted": every CONSISTENT neighbour counts
+        # as corroboration (comparison only, Section 7.12 / Table A.2).
         self.corroboration = corroboration
         self._known_keys: set[str] = set()
 

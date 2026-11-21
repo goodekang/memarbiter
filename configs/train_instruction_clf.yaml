@@ -14,9 +14,8 @@ C: 1.0
 max_iter: 400
 
 # grouped: partitions by attack specification / user task / template family
-#          (revised protocol, Table A.1)
-# row:     random row-level split (original protocol; the gate used for the
-#          main-table results was trained this way)
+#          (Table A.1; the gate used for all results in the paper)
+# row:     random row-level split (comparison only)
 split: grouped
 output_dir: checkpoints/instruction_clf
 row_output_dir: checkpoints/instruction_clf_rowsplit

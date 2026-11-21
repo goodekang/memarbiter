@@ -60,16 +60,21 @@ ablation:
   read_time_scorer: true
   trust_update: true
   quarantine_gate: true
-  conflict_classifier: hybrid   # hybrid | nli_only | llm_only
+  # hybrid | nli_only | llm_only | mnli | mnli_no_escalation
+  # (mnli: off-the-shelf RoBERTa-large-MNLI, Fig. 18c)
+  conflict_classifier: hybrid
+  # Client for escalated pairs; null = the backbone. Fig. 18c uses
+  # deepseek-v4-pro so that no GPT-5.6 model takes part in adjudication.
+  escalation_backbone: null
   counterfactual_reexecution: true
-  # Revised update rules (Sections 4.1, 4.2, 4.4; checked in Table A.2):
+  # Update rules of the method (all results in the paper use these):
   #   corroboration: restricted   -> same attribute + independent provenance,
   #                                  one corroboration per source and attribute
-  #                  unrestricted -> every CONSISTENT neighbour corroborates (original rule)
+  #                  unrestricted -> every CONSISTENT neighbour corroborates
   #   lineage: typed   -> derivation / supersession edges; taint and quarantine
   #                       follow derivation edges only
-  #            untyped -> single edge set (original rule)
-  # The main-table numbers were produced with the original rules; use
-  # `--ablation original_rules` to reproduce them.
+  #            untyped -> single edge set
+  # The unrestricted / untyped rules are comparisons only (Section 7.12,
+  # Table A.2): `--ablation unrestricted_corroboration`, `untyped_lineage`.
   corroboration: restricted
   lineage: typed

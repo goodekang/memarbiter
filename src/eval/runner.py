@@ -19,7 +19,7 @@ def apply_ablation(cfg: dict, variant: str | None) -> dict:
     if not variant or variant == "full":
         return cfg
     # Several variants can be combined with commas and are applied in order,
-    # e.g. "original_rules,no_scorer" for a Table 10 row under the main-table rules.
+    # e.g. "unrestricted_corroboration,no_scorer".
     variants = load_yaml("ablations.yaml")["variants"]
     for name in [part.strip() for part in variant.split(",") if part.strip()]:
         if name not in variants:
@@ -105,7 +105,7 @@ def run_suite(
             agent,
             trajectories,
             repair_mode=mode,
-            reissue_after_repair=bool(eval_cfg["suites"]["poison"]["reissue_trigger_after_repair"]) and mode != "none",
+            reissue_after_repair=bool(eval_cfg["suites"]["poison"]["reissue_trigger"]),
         )
     elif suite == "public":
         path = resolve_path(eval_cfg["suites"]["public"].get("split") or eval_cfg["suites"]["conflict"]["split"])

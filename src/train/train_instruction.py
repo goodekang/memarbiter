@@ -8,9 +8,10 @@ false-positive rate are reported on the held-out test partition, overall and
 per category. With ``compare_row_split: true`` the same rows are also split at
 random by row (same partition sizes) for comparison.
 
-``split: row`` reproduces the original protocol: a random stratified row-level
-train/validation split; the gate used for the main-table results was trained
-this way.
+``split: row`` trains on a random stratified row-level train/validation split
+(comparison only; Appendix A.1 reports that this gate gives a lower MPSR on
+PERSIST, 14.2% vs 14.4%, which does not extend to held-out specifications).
+All results in the paper use the grouped gate.
 """
 
 from __future__ import annotations
@@ -106,7 +107,7 @@ def train_instruction_clf(cfg: dict) -> dict:
 
 
 def _train_row_split(cfg: dict, rows: list[dict[str, Any]], encoder: EmbeddingClient) -> dict:
-    """Original protocol: random stratified row-level split (main-table gate)."""
+    """Comparison protocol: random stratified row-level split."""
     rows = [row for row in rows if not row.get("test_only")]
     texts = [str(row["text"]) for row in rows]
     labels = np.asarray([row["label"] for row in rows], dtype=np.int64)

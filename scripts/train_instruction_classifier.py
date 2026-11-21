@@ -5,7 +5,7 @@
                     the AgentDojo / ASB attack specifications, write the pool
   --split grouped   grouped train/dev/test split with held-out specifications
                     and user tasks (default; writes heldout_report.json)
-  --split row       original random row-level split (main-table gate)
+  --split row       random row-level split (comparison only)
 """
 
 from __future__ import annotations

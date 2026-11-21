@@ -182,6 +182,22 @@ CLARIFY_NOTE_TEMPLATE = (
     "applies. Ask the user about {key} before acting on the {attribute}."
 )
 
+# Several conflict groups need clarification: one question lists every
+# unspecified key (main text, read-time policy).
+CLARIFY_MERGED_TEMPLATE = (
+    "Governance note (clarify): the request depends on {n} attributes whose value "
+    "depends on a condition it does not state ({items}). Ask the user one question "
+    "that covers {keys} before acting on these attributes."
+)
+
+# No candidate has a positive fitness score (temporally invalid or out of scope).
+NO_MEMORY_NOTE = (
+    "Governance note (no applicable memory): none of the stored records is valid and "
+    "applicable to this request. Answer from the request and your tools; if the "
+    "request asks about a user-specific attribute, say that no valid record of it is "
+    "available instead of guessing."
+)
+
 TRIPLE_SYSTEM = """\
 You will be provided with one session of a multi-session conversation between a user \
 and an assistant, together with the session index, the session date and the list of \

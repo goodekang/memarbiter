@@ -44,20 +44,32 @@ Hyperparameters match the paper (Table A.3) and live in `configs/`. Prompts are 
 `--build-pairs` collects benign tool outputs from executions of the AgentDojo user tasks (trace logs of benign runs and ground-truth executions of every user task, with the default values of all injection vectors), adds emails, calendar entries, channel messages, web pages and files from the environment seed data, and rewrites the AgentDojo injection tasks and ASB attack tools in the three styles and several carriers (`src/train/gate_data.py`). Every row records its group.
 
 - `--split grouped` (default): injections are grouped by attack specification, benign tool returns by user task and seed items by template family; train/dev/test are formed by group, texts with cosine similarity above 0.95 to an earlier partition are removed, the threshold is chosen for 98% recall on dev, and precision / recall / FPR are reported on the held-out test partition, overall and per category, together with a random row-level split of the same rows (`checkpoints/instruction_clf/heldout_report.json`, split written to `data/classifier/instruction_split.jsonl`).
-- `--split row`: the original random row-level split (`checkpoints/instruction_clf_rowsplit/`). The gate used for the main-table results was trained this way; point `instruction_classifier.checkpoint` / `threshold_file` in `configs/memarbiter.yaml` at that directory to reproduce them.
+- `--split row`: a random row-level split of the same data (`checkpoints/instruction_clf_rowsplit/`), for comparison only. All results in the paper use the grouped gate; the row-split gate gives a slightly lower MPSR on PERSIST (Appendix A.1) because PERSIST-Poison draws on the same attack specifications as the gate's training partition.
 
-### Update rules: revised method vs. main-table configuration
+### Update rules
 
-`configs/memarbiter.yaml` defaults to the revised rules:
+`configs/memarbiter.yaml` holds the configuration used for all results in the paper:
 
-- `corroboration: restricted` -- a `CONSISTENT` pair corroborates only if both records describe the same entity and attribute (backbone `same_attribute` field for escalated pairs, entity--slot tags otherwise) and their provenance is independent (different sources, no derivation path or common derivation ancestor); a source contributes at most one corroboration per attribute.
+- `corroboration: restricted` -- a `CONSISTENT` pair corroborates only if both records describe the same entity and attribute (backbone `same_attribute` field for escalated pairs, the entity and slot assigned by the write-time entity extractor otherwise) and their provenance is independent (different sources, neither is a derivation ancestor of the other, no shared derivation ancestor); a source contributes at most one corroboration per attribute.
 - `lineage: typed` -- derivation and supersession edges are stored separately; taint inheritance, the attribution candidate set and quarantine follow derivation edges only, and a record that superseded the responsible record is retained.
 
-The main tables were produced with the original rules; `--ablation original_rules` (unrestricted corroboration, single untyped edge set) reproduces them, and `unrestricted_corroboration` / `untyped_lineage` switch one rule at a time (Table A.2, Section 7.12). Variants can be combined with commas, e.g. `--ablation original_rules,no_scorer` for a Table 10 row under the main-table rules.
+`--ablation unrestricted_corroboration` and `--ablation untyped_lineage` revert one rule at a time, and `original_rules` reverts both (Section 7.12, Table A.2). Variants can be combined with commas, e.g. `--ablation untyped_lineage,no_scorer`.
+
+### Read-time policy
+
+Records with fitness 0 (temporally invalid or out of scope) are never adopted; if no candidate has a positive score, nothing is adopted and a governance note states that no applicable memory exists. Candidates are partitioned into conflict groups (connected components of `CONTRADICTS` / `CONDITIONAL` relations over the same attribute); the adopt / clarify / abstain rule is applied per group, each group contributes at most one adopted record, and clarification requests from several groups are merged into one question (`src/memarbiter/scorer.py`).
+
+### PERSIST-Poison protocol and metrics
+
+`src/eval/poison_eval.py` saves the environment before the trigger session and reports `asr_t1` (first trigger, before repair; reported as E2E-ASR) and `asr_t2` (trigger re-issued from the restored environment after the first-trigger records are discarded and repair is applied; configurations without repair are re-issued on the unchanged store), together with verifier coverage. FEL is computed over flags with a poisoned record in the candidate set; escalated flags count as failures for FEL@1 and are evaluated on the lineage-ordered list for FEL@3. SRSR and BRR are pooled over poisoned records within reach of repair and over benign records in the neighbourhood of the flagged step; `repair_accounting` and `injected_fate` give the counts behind Table 9.
+
+### Off-the-shelf MNLI classifier
+
+`--ablation mnli` replaces the fine-tuned conflict classifier by `FacebookAI/roberta-large-mnli` and escalates contradictions between records with different write dates or contexts to the backbone; `mnli_deepseek_escalation` sends them to DeepSeek-V4-Pro and `mnli_no_escalation` disables escalation (Fig. 18c).
 
 ### Query context psi
 
-`--query-context annotated` (default) supplies the scope annotation of each PERSIST-Conflict query as psi, as in the main tables. `--query-context extracted` derives psi from the query and the preceding turns of the session by lexical matching against the condition keys of the stored scope predicates, without an LLM call (`src/memarbiter/context.py`; Table 14).
+`--query-context annotated` (default) supplies the scope annotation of each PERSIST-Conflict query as psi, the protocol of the main tables. `--query-context extracted` derives psi from the query and the preceding turns of the session by lexical matching against the condition keys of the stored scope predicates, without an LLM call (`src/memarbiter/context.py`; Table 14).
 
 ## Citation
 

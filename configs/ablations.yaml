@@ -1,4 +1,6 @@
-# Ablation switches for Table 10. Each variant is merged over memarbiter.yaml.
+# Ablation switches (Table 10 and the controlled analyses). Each variant is
+# merged over the `ablation` section of memarbiter.yaml; several variants can
+# be combined with commas.
 
 variants:
   full:
@@ -8,16 +10,17 @@ variants:
     trust_update: true
     quarantine_gate: true
     conflict_classifier: hybrid
+    escalation_backbone: null
     counterfactual_reexecution: true
     corroboration: restricted
     lineage: typed
-  # Original update rules used for the main tables (full-suite comparison in Section 7.12).
-  original_rules:
-    corroboration: unrestricted
-    lineage: untyped
+  # Update rules reverted one at a time (Section 7.12, Table A.2), or both.
   unrestricted_corroboration:
     corroboration: unrestricted
   untyped_lineage:
+    lineage: untyped
+  original_rules:
+    corroboration: unrestricted
     lineage: untyped
   no_provenance:
     provenance_tags: false
@@ -35,3 +38,12 @@ variants:
     conflict_classifier: llm_only
   no_counterfactual:
     counterfactual_reexecution: false
+  # Off-the-shelf MNLI classifier (Fig. 18c): escalation to the backbone,
+  # to DeepSeek-V4-Pro, or none.
+  mnli:
+    conflict_classifier: mnli
+  mnli_deepseek_escalation:
+    conflict_classifier: mnli
+    escalation_backbone: deepseek-v4-pro
+  mnli_no_escalation:
+    conflict_classifier: mnli_no_escalation

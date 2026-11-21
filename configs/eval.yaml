@@ -22,8 +22,14 @@ suites:
     metrics: [dynamic_acc, static_acc, conditional_acc, cr_f1, spr, hit_at_5, abstain_precision]
   poison:
     split: data/persist/poison/test.jsonl
-    metrics: [mpsr, e2e_asr, srsr, brr, fel_at_1, fel_at_3, clean_utility]
-    reissue_trigger_after_repair: true
+    # asr_t1: first trigger, before repair (prevention; reported as E2E-ASR)
+    # asr_t2: trigger re-issued from the restored pre-trigger environment after
+    #         the first-trigger records are discarded and repair is applied
+    #         (recurrence); configurations without repair are re-issued too.
+    # srsr / brr: pooled over poisoned records within reach of repair and over
+    #         benign records in the neighbourhood of the flagged step.
+    metrics: [mpsr, asr_t1, asr_t2, verifier_coverage, srsr, brr, fel_at_1, fel_at_3, clean_utility]
+    reissue_trigger: true
   public:
     split: data/public/longmemeval_s.jsonl
     agentdojo_split: data/public/agentdojo.jsonl

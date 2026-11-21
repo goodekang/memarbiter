@@ -125,7 +125,8 @@ def _query_time(instance: ConflictInstance) -> datetime:
 
 
 def _supporting_hit(agent: ReActAgent, trace, instance: ConflictInstance) -> bool:
-    texts = _retrieved_texts(agent, trace.retrieved_ids)
+    # Hit@5: retrieved_ids holds all K' scored candidates, best first.
+    texts = _retrieved_texts(agent, list(trace.retrieved_ids)[:5])
     supports = instance.supporting_texts or [instance.record_a, instance.record_b]
     for support in supports:
         if not support:

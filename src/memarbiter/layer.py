@@ -9,7 +9,7 @@ from src.memarbiter.context import extract_query_context
 from src.memarbiter.embeddings import EmbeddingClient
 from src.paths import resolve_path
 from src.memarbiter.entity import extract_entities
-from src.memarbiter.nli import ConflictNLI
+from src.memarbiter.nli import ConflictNLI, OffTheShelfMNLI
 from src.memarbiter.quarantine import InstructionClassifier
 from src.memarbiter.record import MemoryRecord, Partition, SourceKind, parse_source
 from src.memarbiter.scorer import FitnessScorer, ReadDecision
@@ -145,11 +145,24 @@ def build_memarbiter(cfg: dict, llm, embeddings: EmbeddingClient | None = None) 
         batch_size=int(embed_cfg.get("batch_size", 64)),
     )
     nli_cfg = cfg.get("nli", {})
-    nli = ConflictNLI(
-        checkpoint=resolve_path(nli_cfg.get("checkpoint", "checkpoints/conflict_nli/best")),
-        margin=float(cfg.get("write", {}).get("nli_margin", 0.15)),
-        max_length=int(nli_cfg.get("max_length", 512)),
-    )
+    ablation = cfg.get("ablation", {})
+    if str(ablation.get("conflict_classifier", "hybrid")).startswith("mnli"):
+        # Off-the-shelf MNLI model without PERSIST / LongMemEval data (Fig. 18c).
+        nli = OffTheShelfMNLI(
+            model_name=str(nli_cfg.get("offshelf_model", "FacebookAI/roberta-large-mnli")),
+            max_length=int(nli_cfg.get("max_length", 512)),
+        )
+    else:
+        nli = ConflictNLI(
+            checkpoint=resolve_path(nli_cfg.get("checkpoint", "checkpoints/conflict_nli/best")),
+            margin=float(cfg.get("write", {}).get("nli_margin", 0.15)),
+            max_length=int(nli_cfg.get("max_length", 512)),
+        )
+    escalation_backbone = ablation.get("escalation_backbone")
+    if escalation_backbone:
+        from src.llm.client import build_client
+
+        nli.escalation_llm = build_client(str(escalation_backbone))
     gate_cfg = cfg.get("instruction_classifier", {})
     gate = InstructionClassifier(
         checkpoint=resolve_path(gate_cfg.get("checkpoint", "checkpoints/instruction_clf/model.joblib")),
