@@ -53,7 +53,7 @@ Hyperparameters match the paper (Table A.3) and live in `configs/`. Prompts are 
 - `corroboration: restricted` -- a `CONSISTENT` pair corroborates only if both records describe the same entity and attribute (backbone `same_attribute` field for escalated pairs, entity--slot tags otherwise) and their provenance is independent (different sources, no derivation path or common derivation ancestor); a source contributes at most one corroboration per attribute.
 - `lineage: typed` -- derivation and supersession edges are stored separately; taint inheritance, the attribution candidate set and quarantine follow derivation edges only, and a record that superseded the responsible record is retained.
 
-The main tables were produced with the original rules; `--ablation original_rules` (unrestricted corroboration, single untyped edge set) reproduces them, and `unrestricted_corroboration` / `untyped_lineage` switch one rule at a time (Table A.2, Section 7.12).
+The main tables were produced with the original rules; `--ablation original_rules` (unrestricted corroboration, single untyped edge set) reproduces them, and `unrestricted_corroboration` / `untyped_lineage` switch one rule at a time (Table A.2, Section 7.12). Variants can be combined with commas, e.g. `--ablation original_rules,no_scorer` for a Table 10 row under the main-table rules.
 
 ### Query context psi
 

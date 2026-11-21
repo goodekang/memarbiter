@@ -24,7 +24,7 @@ def main() -> None:
     parser.add_argument("--system", default="memarbiter")
     parser.add_argument("--backbone", default="gpt-5.6-sol")
     parser.add_argument("--defense", default=None)
-    parser.add_argument("--ablation", default=None, help="variant key from configs/ablations.yaml")
+    parser.add_argument("--ablation", default=None, help="variant key(s) from configs/ablations.yaml, comma-separated (e.g. original_rules,no_scorer)")
     parser.add_argument("--prior", default=None, help="hand_set | learned | uniform | swapped")
     parser.add_argument("--seed", type=int, default=13)
     parser.add_argument("--all-seeds", action="store_true", help="run the five protocol seeds and report the mean")

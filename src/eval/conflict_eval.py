@@ -106,11 +106,16 @@ def _query_context(instance: ConflictInstance) -> dict[str, str]:
 
 
 def _extracted_context(agent: ReActAgent, instance: ConflictInstance) -> dict[str, str]:
-    """Extracted psi: query + preceding turns of the query's session, matched lexically."""
+    """Extracted psi: the query (and preceding turns of its session), matched lexically.
+
+    In PERSIST-Conflict the query is a separate turn issued after the replayed
+    history, so the instance holds no earlier turns of the query's session and
+    only the query text is matched; history sessions are not used, since they
+    contain the conditional records themselves.
+    """
     if not hasattr(agent.memory, "layer"):
         return {}
-    preceding = [turn.text for turn in instance.sessions[-1].turns] if instance.sessions else []
-    return agent.memory.layer.extract_context(instance.query, preceding)
+    return agent.memory.layer.extract_context(instance.query, [])
 
 
 def _query_time(instance: ConflictInstance) -> datetime:

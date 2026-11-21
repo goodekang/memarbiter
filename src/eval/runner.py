@@ -18,10 +18,13 @@ from src.persist.io import load_conflicts, load_poisons
 def apply_ablation(cfg: dict, variant: str | None) -> dict:
     if not variant or variant == "full":
         return cfg
+    # Several variants can be combined with commas and are applied in order,
+    # e.g. "original_rules,no_scorer" for a Table 10 row under the main-table rules.
     variants = load_yaml("ablations.yaml")["variants"]
-    if variant not in variants:
-        raise KeyError(f"unknown ablation {variant}")
-    cfg["memarbiter"].setdefault("ablation", {}).update(variants[variant])
+    for name in [part.strip() for part in variant.split(",") if part.strip()]:
+        if name not in variants:
+            raise KeyError(f"unknown ablation {name}")
+        cfg["memarbiter"].setdefault("ablation", {}).update(variants[name])
     return cfg
 
 
